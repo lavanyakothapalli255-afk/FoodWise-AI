@@ -1,0 +1,11 @@
+scenario,method,total_surplus,total_allocated,unallocated_surplus,allocation_pct,total_transport_distance,capacity_utilization,hard_constraint_violations,scenario_description
+1,baseline,200,200.0,0.0,100.0,1000.0,0.4167,0,All recipients available and enough capacity
+1,optimizer,200,200.0,0.0,100.0,1000.0,0.4167,0,All recipients available and enough capacity
+2,baseline,200,200.0,0.0,100.0,1400.0,0.5556,0,Nearest recipient unavailable
+2,optimizer,200,200.0,0.0,100.0,1400.0,0.5556,0,Nearest recipient unavailable
+3,baseline,200,200.0,0.0,100.0,1300.0,0.5263,0,"Nearest recipient has insufficient capacity, requiring allocation across multiple recipients"
+3,optimizer,200,200.0,0.0,100.0,1300.0,0.5263,0,"Nearest recipient has insufficient capacity, requiring allocation across multiple recipients"
+4,baseline,200,200.0,0.0,100.0,1400.0,0.5556,0,A recipient is time-infeasible (transit time exceeds usable time remaining)
+4,optimizer,200,200.0,0.0,100.0,1400.0,0.5556,0,A recipient is time-infeasible (transit time exceeds usable time remaining)
+5,baseline,500,480.0,20.0,96.0,4460.0,1.0,0,Total feasible recipient capacity is less than surplus
+5,optimizer,500,480.0,20.0,96.0,4460.0,1.0,0,Total feasible recipient capacity is less than surplus
