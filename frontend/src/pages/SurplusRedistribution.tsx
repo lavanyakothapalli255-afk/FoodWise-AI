@@ -1,4 +1,4 @@
-﻿import { useState } from "react";
+import { useState } from "react";
 
 const API = import.meta.env.VITE_API_URL || "http://localhost:8000/api";
 
@@ -119,10 +119,10 @@ function SurplusRedistribution() {
 
   /* Redistribution state */
   const [overrides, setOverrides] = useState<RecipientOverride[]>([
-    { recipient_id: 2, distance_km: 5, transit_time_min: 15, usable_time_remaining_min: 120, priority: 3 },
-    { recipient_id: 3, distance_km: 10, transit_time_min: 30, usable_time_remaining_min: 120, priority: 1 },
-    { recipient_id: 4, distance_km: 15, transit_time_min: 45, usable_time_remaining_min: 120, priority: 4 },
-    { recipient_id: 5, distance_km: 5, transit_time_min: 18, usable_time_remaining_min: 120, priority: 1 },
+    { recipient_id: 1, distance_km: 5, transit_time_min: 15, usable_time_remaining_min: 120, priority: 3 },
+    { recipient_id: 2, distance_km: 10, transit_time_min: 30, usable_time_remaining_min: 120, priority: 1 },
+    { recipient_id: 3, distance_km: 15, transit_time_min: 45, usable_time_remaining_min: 120, priority: 4 },
+    { recipient_id: 4, distance_km: 5, transit_time_min: 18, usable_time_remaining_min: 120, priority: 1 },
   ]);
   const [optResult, setOptResult] = useState<OptimizeResult | null>(null);
   const [optErr, setOptErr] = useState("");
@@ -193,7 +193,7 @@ function SurplusRedistribution() {
       });
       if (!res.ok) throw new Error(await res.text());
       const data = await res.json();
-      setAuthResult(`Plan #${data.id} authorized by ${data.authorized_by} â€” status: ${data.status}`);
+      setAuthResult(`Plan #${data.id} authorized by ${data.authorized_by} — status: ${data.status}`);
     } catch (e: unknown) {
       setAuthErr(e instanceof Error ? e.message : String(e));
     }
@@ -217,13 +217,13 @@ function SurplusRedistribution() {
         Surplus &amp; Redistribution
       </h1>
       <p style={{ color: "var(--text, #9ca3af)", marginBottom: 24, fontSize: 14 }}>
-        Detect â†’ Decide â†’ Rescue: detect surplus, optimize redistribution, authorize the plan.
+        Detect → Decide → Rescue: detect surplus, optimize redistribution, authorize the plan.
       </p>
 
       {/* ---- Step 1: Surplus Detection ---- */}
       <div style={card}>
         <h2 style={{ fontSize: 17, margin: "0 0 14px", color: "var(--text-h, #f3f4f6)" }}>
-          â‘  Detect Surplus
+          ① Detect Surplus
         </h2>
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr 1fr", gap: 12, marginBottom: 14 }}>
           <div><label style={label}>Center ID</label><input style={input} value={centerId} onChange={e => setCenterId(e.target.value)} /></div>
@@ -273,7 +273,7 @@ function SurplusRedistribution() {
         <div style={card}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 14 }}>
             <h2 style={{ fontSize: 17, margin: 0, color: "var(--text-h, #f3f4f6)" }}>
-              â‘¡ Optimize Redistribution
+              ② Optimize Redistribution
             </h2>
             <span style={tag("amber")}>Demo Scenario</span>
           </div>
@@ -302,7 +302,7 @@ function SurplusRedistribution() {
                     <td style={{ padding: 4 }}><input style={{ ...input, width: 70 }} type="number" min={0} value={o.transit_time_min} onChange={e => updateOverride(i, "transit_time_min", e.target.value)} /></td>
                     <td style={{ padding: 4 }}><input style={{ ...input, width: 80 }} type="number" min={0} value={o.usable_time_remaining_min} onChange={e => updateOverride(i, "usable_time_remaining_min", e.target.value)} /></td>
                     <td style={{ padding: 4 }}><input style={{ ...input, width: 60 }} type="number" min={1} value={o.priority} onChange={e => updateOverride(i, "priority", e.target.value)} /></td>
-                    <td style={{ padding: 4 }}><button style={{ ...btn(), padding: "4px 10px", fontSize: 12 }} onClick={() => removeOverride(i)}>âœ•</button></td>
+                    <td style={{ padding: 4 }}><button style={{ ...btn(), padding: "4px 10px", fontSize: 12 }} onClick={() => removeOverride(i)}>✕</button></td>
                   </tr>
                 ))}
               </tbody>
@@ -361,8 +361,8 @@ function SurplusRedistribution() {
                     <tr key={a.recipient_id} style={{ borderBottom: "1px solid var(--border)", opacity: a.is_feasible ? 1 : 0.5 }}>
                       <td style={{ padding: "5px 6px" }}>{a.recipient_name}</td>
                       <td style={{ padding: "5px 6px", textAlign: "right" }}>{a.capacity}</td>
-                      <td style={{ padding: "5px 6px", textAlign: "center" }}>{a.is_available ? "âœ“" : "âœ—"}</td>
-                      <td style={{ padding: "5px 6px", textAlign: "center" }}>{a.is_time_feasible ? "âœ“" : "âœ—"}</td>
+                      <td style={{ padding: "5px 6px", textAlign: "center" }}>{a.is_available ? "✓" : "✕"}</td>
+                      <td style={{ padding: "5px 6px", textAlign: "center" }}>{a.is_time_feasible ? "✓" : "✕"}</td>
                       <td style={{ padding: "5px 6px", textAlign: "right" }}>{a.distance_km}</td>
                       <td style={{ padding: "5px 6px", textAlign: "right" }}>{a.priority}</td>
                       <td style={{ padding: "5px 6px", textAlign: "right", fontWeight: 600, color: a.allocated_quantity > 0 ? "#22c55e" : "var(--text)" }}>{a.allocated_quantity}</td>
@@ -379,10 +379,10 @@ function SurplusRedistribution() {
       {optResult && optResult.plan_ids.length > 0 && (
         <div style={card}>
           <h2 style={{ fontSize: 17, margin: "0 0 14px", color: "var(--text-h, #f3f4f6)" }}>
-            â‘¢ Authorize Plan
+            ③ Authorize Plan
           </h2>
           <p style={{ fontSize: 12, color: "var(--text)", marginBottom: 12 }}>
-            Review the plan above then authorize. Food-safety eligibility check â€” human authorization required.
+            Review the plan above then authorize. Food-safety eligibility check — human authorization required.
           </p>
           <div style={{ display: "flex", gap: 12, alignItems: "end" }}>
             <div style={{ flex: 1 }}>
@@ -400,7 +400,7 @@ function SurplusRedistribution() {
           {authErr && <p style={{ color: "#ef4444", marginTop: 8, fontSize: 13 }}>{authErr}</p>}
           {authResult && (
             <p style={{ marginTop: 10, color: "#22c55e", fontSize: 13, fontWeight: 600 }}>
-              âœ“ {authResult}
+              ✓ {authResult}
             </p>
           )}
         </div>

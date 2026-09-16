@@ -192,7 +192,7 @@ function ForecastProduction() {
         Forecast &amp; Production
       </h1>
       <p style={{ color: "var(--text, #9ca3af)", fontSize: 16, marginBottom: 24 }}>
-        Demand Intelligence â†’ Production Decision
+        Demand Intelligence → Production Decision
       </p>
 
       {/* Messaging */}
