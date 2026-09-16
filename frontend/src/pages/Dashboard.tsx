@@ -1,6 +1,6 @@
-import { useEffect, useState } from "react";
+﻿import { useEffect, useState } from "react";
 
-const API = "http://localhost:8000/api";
+const API = import.meta.env.VITE_API_URL || "http://localhost:8000/api";
 
 interface DashboardSummary {
   detail?: string;
@@ -72,13 +72,13 @@ function Dashboard() {
         </h2>
         <div style={{ display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap", marginTop: 8 }}>
           <span style={{ ...tag("blue"), padding: "6px 14px", fontSize: 14 }}>Historical Data</span>
-          <span style={{ color: "#3b82f6" }}>→</span>
+          <span style={{ color: "#3b82f6" }}>â†’</span>
           <span style={{ ...tag("blue"), padding: "6px 14px", fontSize: 14 }}>AI Forecast</span>
-          <span style={{ color: "#3b82f6" }}>→</span>
+          <span style={{ color: "#3b82f6" }}>â†’</span>
           <span style={{ ...tag("blue"), padding: "6px 14px", fontSize: 14 }}>Production Decision</span>
-          <span style={{ color: "#3b82f6" }}>→</span>
+          <span style={{ color: "#3b82f6" }}>â†’</span>
           <span style={{ ...tag("blue"), padding: "6px 14px", fontSize: 14 }}>Actual Outcome</span>
-          <span style={{ color: "#3b82f6" }}>→</span>
+          <span style={{ color: "#3b82f6" }}>â†’</span>
           <span style={{ ...tag("blue"), padding: "6px 14px", fontSize: 14 }}>Surplus Response</span>
         </div>
       </div>
@@ -150,3 +150,4 @@ function Dashboard() {
 }
 
 export default Dashboard;
+

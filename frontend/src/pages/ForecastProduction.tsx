@@ -1,6 +1,6 @@
-import { useState } from "react";
+﻿import { useState } from "react";
 
-const API = "http://localhost:8000/api";
+const API = import.meta.env.VITE_API_URL || "http://localhost:8000/api";
 
 interface ForecastRead {
   id: number;
@@ -192,7 +192,7 @@ function ForecastProduction() {
         Forecast &amp; Production
       </h1>
       <p style={{ color: "var(--text, #9ca3af)", fontSize: 16, marginBottom: 24 }}>
-        Demand Intelligence → Production Decision
+        Demand Intelligence â†’ Production Decision
       </p>
 
       {/* Messaging */}
@@ -392,3 +392,4 @@ function ForecastProduction() {
 }
 
 export default ForecastProduction;
+
