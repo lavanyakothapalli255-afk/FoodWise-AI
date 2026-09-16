@@ -1,7 +1,7 @@
 """Seed script to populate reference data (centers and meals)."""
 
 from app.database import SessionLocal, engine, Base
-from app.models.db_models import Center, Meal
+from app.models.db_models import Center, Meal, Recipient
 
 
 def seed():
@@ -35,6 +35,19 @@ def seed():
             print(f"Seeded {len(meals)} meals.")
         else:
             print("Meals already seeded — skipping.")
+
+        if db.query(Recipient).count() == 0:
+            recipients = [
+                Recipient(name="City Shelter A", type="shelter", location="Area 1", capacity=2000, is_active=True),
+                Recipient(name="Food Bank B", type="food_bank", location="Area 2", capacity=1500, is_active=True),
+                Recipient(name="Community Kitchen C", type="community", location="Area 3", capacity=1000, is_active=True),
+                Recipient(name="Unavailable Center D", type="ngo", location="Area 4", capacity=500, is_active=False),
+            ]
+            db.add_all(recipients)
+            db.commit()
+            print(f"Seeded {len(recipients)} recipients.")
+        else:
+            print("Recipients already seeded — skipping.")
 
     finally:
         db.close()
