@@ -37,6 +37,7 @@ app.add_middleware(
         "http://localhost:5173",
         "http://127.0.0.1:5173",
         "https://food-wise-4uk3eywde-lavanya-719d.vercel.app",
+        "https://food-wise-81j14j33o-lavanya-719d.vercel.app",
     ],
     allow_credentials=True,
     allow_methods=["*"],
