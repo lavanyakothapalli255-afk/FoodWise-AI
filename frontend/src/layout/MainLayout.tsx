@@ -4,6 +4,7 @@ const navItems = [
   { to: "/", label: "Dashboard" },
   { to: "/forecast", label: "Forecast & Production" },
   { to: "/surplus", label: "Surplus & Redistribution" },
+  { to: "/scenario", label: "What-If Simulator" },
 ];
 
 function MainLayout() {

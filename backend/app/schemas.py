@@ -3,7 +3,7 @@
 from datetime import date, datetime
 from typing import List, Literal, Optional
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, model_validator
 
 
 # ---------------------------------------------------------------------------
@@ -140,7 +140,18 @@ class ProductionRecommendRequest(BaseModel):
     center_id: int
     meal_id: int
     date: date
-    policy: Literal["p50", "p70", "p80", "p90", "p95", "historical_mean"] = "p80"
+    policy: Literal["p50", "p70", "p80", "p90", "p95", "historical_mean", "smart"] = "p80"
+    surplus_penalty_per_meal: Optional[float] = Field(None, ge=0.0)
+    shortage_penalty_per_meal: Optional[float] = Field(None, ge=0.0)
+
+    @model_validator(mode="after")
+    def validate_smart_mode(self):
+        if self.policy == "smart":
+            if self.surplus_penalty_per_meal is None or self.shortage_penalty_per_meal is None:
+                raise ValueError("Both surplus and shortage penalties must be provided in smart mode.")
+            if self.surplus_penalty_per_meal == 0.0 and self.shortage_penalty_per_meal == 0.0:
+                raise ValueError("Both penalties cannot be zero.")
+        return self
 
 
 class ProductionRecordRequest(BaseModel):
@@ -187,6 +198,11 @@ class ProductionRecommendResponse(BaseModel):
     point_forecast: float
     expected_surplus: float
     expected_shortage: float
+    decision_mode: Optional[str] = None
+    expected_decision_cost: Optional[float] = None
+    surplus_penalty_per_meal: Optional[float] = None
+    shortage_penalty_per_meal: Optional[float] = None
+    explanation: Optional[str] = None
 
 
 # ---------------------------------------------------------------------------
@@ -361,3 +377,64 @@ class DashboardSummary(BaseModel):
     total_production_decisions: int = 0
     total_redistribution_plans: int = 0
     authorized_plans: int = 0
+
+
+# ---------------------------------------------------------------------------
+# Scenario Simulation schemas (V2.1)
+# ---------------------------------------------------------------------------
+
+
+class ScenarioRecipientOverride(BaseModel):
+    """Schema for overriding recipient availability in a scenario."""
+
+    recipient_id: int
+    is_available: bool
+
+
+class ScenarioSimulateRequest(BaseModel):
+    """Request schema for scenario simulation."""
+
+    center_id: int
+    meal_id: int
+    target_date: date
+    demand_multiplier: float = Field(..., ge=0.5, le=2.0)
+    surplus_penalty_per_meal: float = Field(..., ge=0.0)
+    shortage_penalty_per_meal: float = Field(..., ge=0.0)
+    recipient_availability_overrides: List[ScenarioRecipientOverride] = Field(default_factory=list)
+
+    @model_validator(mode="after")
+    def validate_penalties(self):
+        if self.surplus_penalty_per_meal == 0.0 and self.shortage_penalty_per_meal == 0.0:
+            raise ValueError("Both surplus and shortage penalties cannot be zero.")
+        return self
+
+
+class ScenarioDecisionMetrics(BaseModel):
+    """Metrics for a single decision (baseline or scenario)."""
+
+    point_forecast: float
+    simulated_demand_mean: float
+    recommended_quantity: int
+    expected_surplus: float
+    expected_shortage: float
+    decision_cost: float
+
+
+class ScenarioDeltaMetrics(BaseModel):
+    """Differences between scenario and baseline."""
+
+    demand_change: float
+    production_change: int
+    surplus_change: float
+    shortage_change: float
+    cost_change: float
+
+
+class ScenarioSimulateResponse(BaseModel):
+    """Response schema for scenario simulation."""
+
+    baseline: ScenarioDecisionMetrics
+    scenario: ScenarioDecisionMetrics
+    changes: ScenarioDeltaMetrics
+    redistribution: Optional[RedistributionOptimizeResponse] = None
+    explanation: str

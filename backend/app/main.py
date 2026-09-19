@@ -13,6 +13,7 @@ from app.routers import (
     recipients,
     redistribution,
     surplus,
+    scenario,
 )
 
 
@@ -54,6 +55,7 @@ app.include_router(
     redistribution.router, prefix="/api/redistribution", tags=["Redistribution"]
 )
 app.include_router(surplus.router, prefix="/api/surplus", tags=["Surplus"])
+app.include_router(scenario.router, prefix="/api/scenario", tags=["Scenario"])
 
 
 @app.get("/", tags=["Health"])

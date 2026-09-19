@@ -41,6 +41,8 @@ def recommend_production(
         target_date=payload.date,
         policy=payload.policy,
         db=db,
+        surplus_penalty_per_meal=payload.surplus_penalty_per_meal,
+        shortage_penalty_per_meal=payload.shortage_penalty_per_meal,
     )
     return result
 

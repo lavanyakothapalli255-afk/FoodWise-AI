@@ -236,6 +236,7 @@ class RedistributionService:
         surplus_qty: int,
         recipient_overrides: list[dict],
         db: Session,
+        persist: bool = True,
     ) -> dict:
         """Optimize redistribution of surplus to recipients.
 
@@ -344,18 +345,19 @@ class RedistributionService:
 
             # Persist only non-zero allocations
             if alloc_qty > 0:
-                plan = RedistributionPlan(
-                    center_id=center_id,
-                    meal_id=meal_id,
-                    recipient_id=r.id,
-                    date=target_date,
-                    surplus_quantity=surplus_qty,
-                    allocated_quantity=alloc_qty,
-                    status="recommended",
-                )
-                db.add(plan)
-                db.flush()  # get the ID without committing yet
-                plan_ids.append(plan.id)
+                if persist:
+                    plan = RedistributionPlan(
+                        center_id=center_id,
+                        meal_id=meal_id,
+                        recipient_id=r.id,
+                        date=target_date,
+                        surplus_quantity=surplus_qty,
+                        allocated_quantity=alloc_qty,
+                        status="recommended",
+                    )
+                    db.add(plan)
+                    db.flush()  # get the ID without committing yet
+                    plan_ids.append(plan.id)
 
             allocations_out.append(
                 {
@@ -373,7 +375,8 @@ class RedistributionService:
                 }
             )
 
-        db.commit()
+        if persist:
+            db.commit()
 
         return {
             "center_id": center_id,

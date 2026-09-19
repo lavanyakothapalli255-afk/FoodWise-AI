@@ -21,6 +21,7 @@ Each policy represents a different trade-off.  The caller chooses the
 policy that matches their operational priority (service level vs. waste).
 """
 
+import hashlib
 import logging
 import os
 
@@ -51,7 +52,7 @@ POLICY_PERCENTILES = {
     "p95": 95,
 }
 
-VALID_POLICIES = set(POLICY_PERCENTILES.keys()) | {"historical_mean"}
+VALID_POLICIES = set(POLICY_PERCENTILES.keys()) | {"historical_mean", "smart"}
 
 
 class ProductionService:
@@ -81,6 +82,93 @@ class ProductionService:
     # Public API
     # ------------------------------------------------------------------
 
+    def compute_decision(
+        self,
+        center_id: int,
+        meal_id: int,
+        target_date,
+        policy: str,
+        point_forecast: float,
+        demand_multiplier: float = 1.0,
+        surplus_penalty_per_meal: float = None,
+        shortage_penalty_per_meal: float = None,
+    ) -> dict:
+        """Compute the production decision metrics without DB persistence.
+        
+        Applies a demand_multiplier to the simulated demand distribution.
+        """
+        self._ensure_loaded()
+        
+        # --- 2. Monte Carlo simulation ---
+        seed_str = f"{center_id}_{meal_id}_{target_date}"
+        seed_int = int(hashlib.sha256(seed_str.encode("utf-8")).hexdigest(), 16) % (2**31)
+        rng = np.random.default_rng(seed_int)
+        sampled_residuals = rng.choice(
+            self._residual_pool, size=N_SAMPLES, replace=True
+        )
+        d_sim = np.maximum(0.0, point_forecast + sampled_residuals)
+        
+        # Apply scenario multiplier to the simulated demand
+        d_sim = d_sim * demand_multiplier
+
+        decision_mode = None
+        expected_decision_cost = None
+        explanation = None
+
+        # --- 3. Apply policy ---
+        if policy == "historical_mean":
+            forecast_service._ensure_trained()
+            csv_cid, csv_mid = forecast_service.map_ids(center_id, meal_id)
+            hist_mean = forecast_service._historical_means.get(
+                (csv_cid, csv_mid), forecast_service._overall_train_mean
+            )
+            recommended_qty = int(round(hist_mean * demand_multiplier))
+        elif policy == "smart":
+            lower_bound = max(0, int(np.floor(np.min(d_sim))))
+            upper_bound = int(np.ceil(np.max(d_sim)))
+            candidates = np.arange(lower_bound, upper_bound + 1)
+            
+            C = candidates[:, np.newaxis]
+            D = d_sim[np.newaxis, :]
+            
+            surplus_matrix = np.maximum(C - D, 0.0)
+            shortage_matrix = np.maximum(D - C, 0.0)
+            
+            E_surplus = np.mean(surplus_matrix, axis=1)
+            E_shortage = np.mean(shortage_matrix, axis=1)
+            
+            E_cost = surplus_penalty_per_meal * E_surplus + shortage_penalty_per_meal * E_shortage
+            
+            best_idx = int(np.argmin(E_cost))
+            recommended_qty = int(candidates[best_idx])
+            expected_decision_cost = float(E_cost[best_idx])
+            decision_mode = "smart_cost_minimization"
+            explanation = f"Selected {recommended_qty} meals because this quantity minimizes the expected decision penalty under the supplied surplus and shortage penalties."
+        else:
+            percentile = POLICY_PERCENTILES[policy]
+            recommended_qty = int(round(float(np.percentile(d_sim, percentile))))
+
+        recommended_qty = max(0, recommended_qty)
+
+        # --- 4. Expected surplus / shortage ---
+        q = float(recommended_qty)
+        expected_surplus = float(np.mean(np.maximum(q - d_sim, 0.0)))
+        expected_shortage = float(np.mean(np.maximum(d_sim - q, 0.0)))
+
+        return {
+            "policy_used": policy,
+            "point_forecast": round(point_forecast, 2),
+            "simulated_demand_mean": float(np.mean(d_sim)),
+            "recommended_quantity": recommended_qty,
+            "expected_surplus": round(expected_surplus, 2),
+            "expected_shortage": round(expected_shortage, 2),
+            "decision_mode": decision_mode,
+            "expected_decision_cost": round(expected_decision_cost, 2) if expected_decision_cost is not None else None,
+            "surplus_penalty_per_meal": surplus_penalty_per_meal,
+            "shortage_penalty_per_meal": shortage_penalty_per_meal,
+            "explanation": explanation,
+        }
+
     def recommend(
         self,
         center_id: int,
@@ -88,20 +176,19 @@ class ProductionService:
         target_date,
         policy: str,
         db: Session,
+        surplus_penalty_per_meal: float = None,
+        shortage_penalty_per_meal: float = None,
     ) -> dict:
         """Compute a production recommendation for a centre–meal–date.
 
         Returns a dict with the DB-persisted ProductionDecision fields
-        plus computed trade-off transparency fields (policy_used,
-        point_forecast, expected_surplus, expected_shortage).
+        plus computed trade-off transparency fields.
         """
         if policy not in VALID_POLICIES:
             raise ValueError(
                 f"Invalid policy '{policy}'. "
                 f"Choose from: {sorted(VALID_POLICIES)}"
             )
-
-        self._ensure_loaded()
 
         # --- 1. Obtain point forecast ---
         forecast = forecast_service.get_forecast(center_id, meal_id, db)
@@ -111,40 +198,24 @@ class ProductionService:
             )
         point_forecast = forecast.predicted_demand
 
-        # --- 2. Monte Carlo simulation (Experiment 2, lines 207–212) ---
-        rng = np.random.default_rng(
-            abs(hash((center_id, meal_id, str(target_date)))) % (2**31)
+        # --- Compute Decision Metrics ---
+        metrics = self.compute_decision(
+            center_id=center_id,
+            meal_id=meal_id,
+            target_date=target_date,
+            policy=policy,
+            point_forecast=point_forecast,
+            demand_multiplier=1.0,
+            surplus_penalty_per_meal=surplus_penalty_per_meal,
+            shortage_penalty_per_meal=shortage_penalty_per_meal,
         )
-        sampled_residuals = rng.choice(
-            self._residual_pool, size=N_SAMPLES, replace=True
-        )
-        d_sim = np.maximum(0.0, point_forecast + sampled_residuals)
-
-        # --- 3. Apply policy (Experiment 2, lines 214–221) ---
-        if policy == "historical_mean":
-            forecast_service._ensure_trained()
-            csv_cid, csv_mid = forecast_service.map_ids(center_id, meal_id)
-            hist_mean = forecast_service._historical_means.get(
-                (csv_cid, csv_mid), forecast_service._overall_train_mean
-            )
-            recommended_qty = int(round(hist_mean))
-        else:
-            percentile = POLICY_PERCENTILES[policy]
-            recommended_qty = int(round(float(np.percentile(d_sim, percentile))))
-
-        recommended_qty = max(0, recommended_qty)
-
-        # --- 4. Expected surplus / shortage (Experiment 2, lines 223–229) ---
-        q = float(recommended_qty)
-        expected_surplus = float(np.mean(np.maximum(q - d_sim, 0.0)))
-        expected_shortage = float(np.mean(np.maximum(d_sim - q, 0.0)))
 
         # --- 5. Persist to production_decisions ---
         decision = ProductionDecision(
             center_id=center_id,
             meal_id=meal_id,
             date=target_date,
-            recommended_quantity=recommended_qty,
+            recommended_quantity=metrics["recommended_quantity"],
             decision_status="pending",
         )
         db.add(decision)
@@ -160,10 +231,15 @@ class ProductionService:
             "actual_quantity": decision.actual_quantity,
             "decision_status": decision.decision_status,
             "created_at": decision.created_at,
-            "policy_used": policy,
-            "point_forecast": round(point_forecast, 2),
-            "expected_surplus": round(expected_surplus, 2),
-            "expected_shortage": round(expected_shortage, 2),
+            "policy_used": metrics["policy_used"],
+            "point_forecast": metrics["point_forecast"],
+            "expected_surplus": metrics["expected_surplus"],
+            "expected_shortage": metrics["expected_shortage"],
+            "decision_mode": metrics["decision_mode"],
+            "expected_decision_cost": metrics["expected_decision_cost"],
+            "surplus_penalty_per_meal": metrics["surplus_penalty_per_meal"],
+            "shortage_penalty_per_meal": metrics["shortage_penalty_per_meal"],
+            "explanation": metrics["explanation"],
         }
 
     def record_actual(
